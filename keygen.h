@@ -68,12 +68,10 @@ public:
         return '0';
     }
     
-    string* generateKey(){
+    void generateKey(unsigned char* key){
             ll p = 65537;
             ll q = 10007;
             ll s = 100140048;
-            char key[32];
-            string finalKey[16];
             int strkey[4];
             short y;
             int quot;
@@ -82,25 +80,23 @@ public:
             for(int i = 0; i < 128; ++i) {
                 std::bitset<1> y(b.getrandom());
                 strkey[i%4]=int(y.to_ulong());
-                if(i%4==3){
-                    quot=0;
-                    for(int j=0; j<4; j++){
-                        quot=quot*2+strkey[j];
+                if(i%8 == 7){
+                    int binNum = 0;
+                    for(int j=3; j>=0; j--){
+                        binNum += strkey[j%3] * pow(10, j);
                     }
-                    char hex_quot = bbs::ConvertHex(quot);
-                    key[key_index] = hex_quot;
+                    int decimalNumber = 0, i = 0, remainder;
+                    while (binNum!=0)
+                    {
+                        remainder = binNum%10;
+                        binNum /= 10;
+                        decimalNumber += remainder*pow(2,i);
+                        ++i;
+                    }
+                    key[key_index] = decimalNumber;
                     key_index++;
                 }
             }
-            cout<<"Key is: "<<endl;
-            for(int i=0; i<32; i+=2){
-                string s = "";
-                cout<<key[i]<<" "<<key[i+1]<<endl;
-                s+=key[i];
-                s+=key[i+1];
-                finalKey[i/2] = s;
-            }
-        return finalKey;
     }
     
 };

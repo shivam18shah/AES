@@ -10,7 +10,8 @@
 #include <curses.h>
 #include "lookupboxes.h"
 #include "keygen.h"
-
+#include <typeinfo>
+#include<stdlib.h>
 using namespace std;
 
 void PrintHex(unsigned char x){
@@ -265,19 +266,13 @@ void AES_Decrypt(unsigned char* message, unsigned char* key){
 
 int main(){
     unsigned char message[] = "This is a message we will encrypt with DES!";
-        ll p = 65537;
-        ll q = 10007;
-        ll s = 100140048;
+    ll p = 65537;
+    ll q = 10007;
+    ll s = 100140048;
     bbs bbs_obj(p, q, s);
-    bbs_obj.generateKey();
-    unsigned char key[16] =
-    {
-        1, 2, 3, 4,
-        5, 6, 7, 8,
-        9, 10, 11, 12,
-        13, 14, 15, 16
-    };
-    
+    unsigned char *key = (unsigned char*) malloc(16);
+    bbs_obj.generateKey(key);
+
     int originalLen = strlen((const char*)message);
     int lenOfPaddedMessage = originalLen;
     //if original message is not  16 bytes then round the number of padding required
