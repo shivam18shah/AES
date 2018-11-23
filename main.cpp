@@ -264,6 +264,33 @@ void AES_Decrypt(unsigned char* message, unsigned char* key){
     }
 }
 
+void generateKey(unsigned char* key, bbs &b){
+    int strkey[4];
+    short y;
+    int quot;
+    int key_index = 0;
+    for(int i = 0; i < 128; ++i) {
+        std::bitset<1> y(b.getrandom());
+        strkey[i%4]=int(y.to_ulong());
+        if(i%8 == 7){
+            int binNum = 0;
+            for(int j=3; j>=0; j--){
+                binNum += strkey[j%3] * pow(10, j);
+            }
+            int decimalNumber = 0, i = 0, remainder;
+            while (binNum!=0)
+            {
+                remainder = binNum%10;
+                binNum /= 10;
+                decimalNumber += remainder*pow(2,i);
+                ++i;
+            }
+            key[key_index] = decimalNumber;
+            key_index++;
+        }
+    }
+}
+
 int main(){
     unsigned char message[] = "This is a message we will encrypt with DES!";
     ll p = 65537;
@@ -271,11 +298,10 @@ int main(){
     ll s = 100140048;
     bbs bbs_obj(p, q, s);
     unsigned char *key = (unsigned char*) malloc(16);
-    bbs_obj.generateKey(key);
+    generateKey(key, bbs_obj);
 
     int originalLen = strlen((const char*)message);
     int lenOfPaddedMessage = originalLen;
-    //if original message is not  16 bytes then round the number of padding required
     if(lenOfPaddedMessage%16!=0){
         lenOfPaddedMessage = (lenOfPaddedMessage/16+1) * 16;
     }

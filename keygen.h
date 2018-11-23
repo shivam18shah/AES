@@ -62,42 +62,36 @@ public:
         return r;
     }
     
-    char ConvertHex(unsigned char x){
-        if(x<10) return(char)((x)+'0');
-        if(x>=10) return(char)((x - 10)+'A');
-        return '0';
-    }
-    
-    void generateKey(unsigned char* key){
-            ll p = 65537;
-            ll q = 10007;
-            ll s = 100140048;
-            int strkey[4];
-            short y;
-            int quot;
-            int key_index = 0;
-            bbs b(p, q, s);
-            for(int i = 0; i < 128; ++i) {
-                std::bitset<1> y(b.getrandom());
-                strkey[i%4]=int(y.to_ulong());
-                if(i%8 == 7){
-                    int binNum = 0;
-                    for(int j=3; j>=0; j--){
-                        binNum += strkey[j%3] * pow(10, j);
-                    }
-                    int decimalNumber = 0, i = 0, remainder;
-                    while (binNum!=0)
-                    {
-                        remainder = binNum%10;
-                        binNum /= 10;
-                        decimalNumber += remainder*pow(2,i);
-                        ++i;
-                    }
-                    key[key_index] = decimalNumber;
-                    key_index++;
-                }
-            }
-    }
+//    void generateKey(unsigned char* key){
+//            ll p = 65537;
+//            ll q = 10007;
+//            ll s = 100140048;
+//            int strkey[4];
+//            short y;
+//            int quot;
+//            int key_index = 0;
+//            bbs b(p, q, s);
+//            for(int i = 0; i < 128; ++i) {
+//                std::bitset<1> y(b.getrandom());
+//                strkey[i%4]=int(y.to_ulong());
+//                if(i%8 == 7){
+//                    int binNum = 0;
+//                    for(int j=3; j>=0; j--){
+//                        binNum += strkey[j%3] * pow(10, j);
+//                    }
+//                    int decimalNumber = 0, i = 0, remainder;
+//                    while (binNum!=0)
+//                    {
+//                        remainder = binNum%10;
+//                        binNum /= 10;
+//                        decimalNumber += remainder*pow(2,i);
+//                        ++i;
+//                    }
+//                    key[key_index] = decimalNumber;
+//                    key_index++;
+//                }
+//            }
+//    }
     
 };
 
