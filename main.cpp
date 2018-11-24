@@ -11,7 +11,16 @@
 #include "lookupboxes.h"
 #include "keygen.h"
 #include <typeinfo>
-#include<stdlib.h>
+#include <stdlib.h>
+#include <cstdio>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <array>
+#include <stdio.h>
+#include <sstream>
+#include<algorithm>
+
 using namespace std;
 
 void PrintHex(unsigned char x){
@@ -22,6 +31,7 @@ void PrintHex(unsigned char x){
 }
 
 void KeyExpansionCore(unsigned char* in, unsigned char i){
+    cout<<"KEY CORE"<<endl;
     //rotate left
     unsigned int* q = (unsigned int*)in;
     *q = (*q >> 8) | ((*q & 0xff) << 24);
@@ -32,22 +42,28 @@ void KeyExpansionCore(unsigned char* in, unsigned char i){
     //    in[3] = t;
     
     //s-box four bytes
+    cout<<int(in[0])<<": "<<s_box[in[0]]<<endl;
     in[0] = s_box[in[0]];
     in[1] = s_box[in[1]];
     in[2] = s_box[in[2]];
     in[3] = s_box[in[3]];
     
+    cout<<in[0]<<endl;
     //RCon
+    cout<<"RCON: ";
+    cout<<in[0]<<" "<<int(rcon[i])<<endl;
     in[0] ^= rcon[i];
-
+    cout<<"AFTER RCON: "<<in[0]<<endl;
 }
 
 void KeyExpansion(unsigned char* inputKey, unsigned char* expandedKeys){
     //the first 16 bytes generated are the original key
+    cout<<"Key being copied: ";
     for(int i=0; i<16; i++){
         expandedKeys[i] = inputKey[i];
+        cout<<int(inputKey[i])<<" ";
     }
-    
+    cout<<endl;
     //variables:
     int bytesGenerated = 16; //we've generated 16 btyes so far, keep track of all the bytes generated
     int rconIteration = 1; //rcon itearation begins at 1
@@ -211,8 +227,9 @@ void AES_Encrypt(unsigned char* message, unsigned char* key){
     unsigned char state[16];
     for(int i=0; i<16; i++){
         state[i] = message[i];
+        cout<<message[i];
     }
-    
+    cout<<endl;
     int numberOfRounds = 9; //apart from final round
     
     //Expand the keys:
@@ -291,37 +308,91 @@ void generateKey(unsigned char* key, bbs &b){
     }
 }
 
-int main(){
-    unsigned char message[] = "This is a message we will encrypt with DES!";
-    ll p = 65537;
-    ll q = 10007;
-    ll s = 100140048;
-    bbs bbs_obj(p, q, s);
-    unsigned char *key = (unsigned char*) malloc(16);
-    generateKey(key, bbs_obj);
+std::string exec(const char* cmd) {
+    std::array<char, 128> buffer;
+    std::string result;
+    std::shared_ptr<FILE> pipe(popen(cmd, "r"), pclose);
+    if (!pipe) throw std::runtime_error("popen() failed!");
+    while (!feof(pipe.get())) {
+        if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+            result += buffer.data();
+    }
+    return result;
+}
 
+int main(){
+//        unsigned char key[16] =
+//        {
+//            1, 2, 3, 4,
+//            5, 6, 7, 8,
+//            9, 10, 11, 12,
+//            13, 14, 15, 16
+//        };
+    unsigned char key[16];
+    unsigned char iv[16];
+    for(int i=0; i<16; i++){
+        string key_str = exec("od -vAn -N1 -tu < /dev/urandom");
+        string iv_str = exec("od -vAn -N1 -tu < /dev/urandom");
+        key_str.erase(remove(key_str.begin(), key_str.end(), ' '), key_str.end()); //removing white spaces from the key string
+        iv_str.erase(remove(iv_str.begin(), iv_str.end(), ' '), iv_str.end());//removing white spaces from the iv string
+        key_str.erase(remove(key_str.begin(), key_str.end(), '\n'), key_str.end()); //removing new line characters from the key string
+        iv_str.erase(remove(iv_str.begin(), iv_str.end(), '\n'), iv_str.end()); //removing new line characters from the iv string
+        //convert string to integer
+        stringstream ss_key(key_str);
+        stringstream ss_iv(iv_str);
+        int key_int = 0;
+        int iv_int = 0;
+        ss_key >> key_int;
+        ss_iv >> iv_int;
+        key[i] = key_int;
+        iv[i] = iv_int;
+    }
+    
+    unsigned char message[] = "This is a message we will encrypt with DES!";
     int originalLen = strlen((const char*)message);
     int lenOfPaddedMessage = originalLen;
     if(lenOfPaddedMessage%16!=0){
         lenOfPaddedMessage = (lenOfPaddedMessage/16+1) * 16;
     }
     unsigned char* paddedMessage = new unsigned char[lenOfPaddedMessage];
+    unsigned char* c = new unsigned char[lenOfPaddedMessage];
+    
     for(int i=0; i<lenOfPaddedMessage; i++){
         if(i>=originalLen){paddedMessage[i] = 0;}
         else {paddedMessage[i] = message[i];}
     }
+    
+    for(int i=0; i<16; i++){
+        c[i] = iv[i];
+    }
+    unsigned char current_msg[16];
+    //CBC starts here
     for(int i=0; i<lenOfPaddedMessage; i+=16){
-        AES_Encrypt(paddedMessage+i , key);
+        for(int j=0; j<16; j++){
+            current_msg[j] = current_msg[i+j] ^ c[i+j];
+        }
+        AES_Encrypt(current_msg, key);
+        for(int k=0; k<16; k++){
+            c[i+k+16] = current_msg[k];
+        }
+//        AES_Encrypt(paddedMessage+i, key);
     }
     
     cout<<"\nEncrypted Message: "<<endl;
     for(int i=0; i<lenOfPaddedMessage; i++){
-        PrintHex(paddedMessage[i]);
+        PrintHex(c[i]);
         cout<<" ";
     }
     
-    for(int i=0; i<lenOfPaddedMessage; i+=16){
-        AES_Decrypt(paddedMessage+i , key);
+   
+    for(int i=0; i<lenOfPaddedMessage-1; i+=16){
+        for(int j=0; j<16; j++){
+            AES_Decrypt(c+i+j+16, key);
+        }
+        for(int j=0; j<16; j++){
+            c[i+j] = c[i+j] ^ c[i+j+16];
+        }
+//        AES_Decrypt(paddedMessage+i , key);
     }
     
     cout<<"\nDecrypted Message: "<<endl;
