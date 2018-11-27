@@ -9,7 +9,6 @@
 #include <iostream>
 #include <curses.h>
 #include "lookupboxes.h"
-#include "keygen.h"
 #include <typeinfo>
 #include <stdlib.h>
 #include <cstdio>
@@ -23,47 +22,46 @@
 
 using namespace std;
 
-void PrintHex(unsigned char x){
-    if(x/16<10) cout<<(char)((x/16)+'0');
-    if(x/16>=10) cout<<(char)((x/16 - 10)+'A');
-    if(x%16<10) cout<<(char)((x%16)+'0');
-    if(x%16>=10) cout<<(char)((x%16-10)+'A');
+//void PrintHex(unsigned char x){
+//    if(x/16<10) cout<<(char)((x/16)+'0');
+//    if(x/16>=10) cout<<(char)((x/16 - 10)+'A');
+//    if(x%16<10) cout<<(char)((x%16)+'0');
+//    if(x%16>=10) cout<<(char)((x%16-10)+'A');
+//}
+
+char PrintHex(unsigned char x){
+    if(x/16<10) return (char)((x/16)+'0');
+    if(x/16>=10) return (char)((x/16 - 10)+'A');
+    if(x%16<10) return (char)((x%16)+'0');
+    if(x%16>=10) return (char)((x%16-10)+'A');
+    return '0';
 }
 
 void KeyExpansionCore(unsigned char* in, unsigned char i){
-    cout<<"KEY CORE"<<endl;
     //rotate left
-    unsigned int* q = (unsigned int*)in;
-    *q = (*q >> 8) | ((*q & 0xff) << 24);
-    //    unsigned char t = in[0];
-    //    in[0] = in[1];
-    //    in[1] = in[2];
-    //    in[2] = in[3];
-    //    in[3] = t;
+//    unsigned int* q = (unsigned int*)in;
+//    *q = (*q >> 8) | ((*q & 0xff) << 24);
+    unsigned char t = in[0];
+    in[0] = in[1];
+    in[1] = in[2];
+    in[2] = in[3];
+    in[3] = t;
     
     //s-box four bytes
-    cout<<int(in[0])<<": "<<s_box[in[0]]<<endl;
     in[0] = s_box[in[0]];
     in[1] = s_box[in[1]];
     in[2] = s_box[in[2]];
     in[3] = s_box[in[3]];
     
-    cout<<in[0]<<endl;
     //RCon
-    cout<<"RCON: ";
-    cout<<in[0]<<" "<<int(rcon[i])<<endl;
     in[0] ^= rcon[i];
-    cout<<"AFTER RCON: "<<in[0]<<endl;
 }
 
 void KeyExpansion(unsigned char* inputKey, unsigned char* expandedKeys){
     //the first 16 bytes generated are the original key
-    cout<<"Key being copied: ";
     for(int i=0; i<16; i++){
         expandedKeys[i] = inputKey[i];
-        cout<<int(inputKey[i])<<" ";
     }
-    cout<<endl;
     //variables:
     int bytesGenerated = 16; //we've generated 16 btyes so far, keep track of all the bytes generated
     int rconIteration = 1; //rcon itearation begins at 1
@@ -222,19 +220,17 @@ void inv_mix_columns(unsigned char* state) {
         state[i] = tmp[i];
 }
 
-void AES_Encrypt(unsigned char* message, unsigned char* key){
+void AES_Encrypt(unsigned char* message, unsigned char* key, unsigned char* expandedKey){
     
     unsigned char state[16];
     for(int i=0; i<16; i++){
         state[i] = message[i];
-        cout<<message[i];
     }
-    cout<<endl;
     int numberOfRounds = 9; //apart from final round
     
     //Expand the keys:
-    unsigned char expandedKey[176];
-    KeyExpansion(key, expandedKey);
+//    unsigned char expandedKey[176];
+//    KeyExpansion(key, expandedKey);
     AddRoundKey(state, key); //whitening addRoundKey
     for(int i=0; i<numberOfRounds; i++){
         SubBytes(state);
@@ -254,16 +250,16 @@ void AES_Encrypt(unsigned char* message, unsigned char* key){
 }
 
 
-void AES_Decrypt(unsigned char* message, unsigned char* key){
+void AES_Decrypt(unsigned char* message, unsigned char* key, unsigned char* expandedKey){
     unsigned char state[16];
-    
     // Take only the first 16 characters of the message
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < 16; i++){
         state[i] = message[i];
+    }
     
     const int round_cnt = 9;
-    unsigned char expandedKey[176];
-    KeyExpansion(key, expandedKey);
+//    unsigned char expandedKey[176];
+//    KeyExpansion(key, expandedKey);
     AddRoundKey(state, expandedKey + 160);
     
     for (int i = round_cnt; i > 0; i--) {
@@ -281,33 +277,6 @@ void AES_Decrypt(unsigned char* message, unsigned char* key){
     }
 }
 
-void generateKey(unsigned char* key, bbs &b){
-    int strkey[4];
-    short y;
-    int quot;
-    int key_index = 0;
-    for(int i = 0; i < 128; ++i) {
-        std::bitset<1> y(b.getrandom());
-        strkey[i%4]=int(y.to_ulong());
-        if(i%8 == 7){
-            int binNum = 0;
-            for(int j=3; j>=0; j--){
-                binNum += strkey[j%3] * pow(10, j);
-            }
-            int decimalNumber = 0, i = 0, remainder;
-            while (binNum!=0)
-            {
-                remainder = binNum%10;
-                binNum /= 10;
-                decimalNumber += remainder*pow(2,i);
-                ++i;
-            }
-            key[key_index] = decimalNumber;
-            key_index++;
-        }
-    }
-}
-
 std::string exec(const char* cmd) {
     std::array<char, 128> buffer;
     std::string result;
@@ -321,13 +290,6 @@ std::string exec(const char* cmd) {
 }
 
 int main(){
-//        unsigned char key[16] =
-//        {
-//            1, 2, 3, 4,
-//            5, 6, 7, 8,
-//            9, 10, 11, 12,
-//            13, 14, 15, 16
-//        };
     unsigned char key[16];
     unsigned char iv[16];
     for(int i=0; i<16; i++){
@@ -348,18 +310,37 @@ int main(){
         iv[i] = iv_int;
     }
     
-    unsigned char message[] = "This is a message we will encrypt with DES!";
-    int originalLen = strlen((const char*)message);
-    int lenOfPaddedMessage = originalLen;
-    if(lenOfPaddedMessage%16!=0){
-        lenOfPaddedMessage = (lenOfPaddedMessage/16+1) * 16;
+    unsigned char expandedKey[176];
+    KeyExpansion(key, expandedKey);
+//    √ⁿ²■ Ā[1]§▼ Θ╔"
+    unsigned char message[] = "k";
+    int originalLen = int(strlen((const char*)message));
+    int lenOfPaddedMessage = 0;
+//    int lenOfPaddedMessage = originalLen;
+//    if(lenOfPaddedMessage%16!=0){
+//        lenOfPaddedMessage = (lenOfPaddedMessage/16+1) * 16;
+//    }
+    int b = 16;
+    if(originalLen%16!=0){
+        b = 16 - (originalLen % 16);
     }
-    unsigned char* paddedMessage = new unsigned char[lenOfPaddedMessage];
-    unsigned char* c = new unsigned char[lenOfPaddedMessage];
+    lenOfPaddedMessage = originalLen + b;
     
+    unsigned char* paddedMessage = new unsigned char[lenOfPaddedMessage];
+    unsigned char* c = new unsigned char[lenOfPaddedMessage+16];
+    unsigned char* c_copy = new unsigned char[lenOfPaddedMessage+16];
+    
+//    for(int i=0; i<lenOfPaddedMessage; i++){
+//        if(i>=originalLen){paddedMessage[i] = 0;}
+//        else {paddedMessage[i] = message[i];}
+//    }
     for(int i=0; i<lenOfPaddedMessage; i++){
-        if(i>=originalLen){paddedMessage[i] = 0;}
-        else {paddedMessage[i] = message[i];}
+        if(i>=originalLen){
+            paddedMessage[i] = b;
+        }
+        else{
+            paddedMessage[i] = message[i];
+        }
     }
     
     for(int i=0; i<16; i++){
@@ -368,39 +349,53 @@ int main(){
     unsigned char current_msg[16];
     //CBC starts here
     for(int i=0; i<lenOfPaddedMessage; i+=16){
-        for(int j=0; j<16; j++){
-            current_msg[j] = current_msg[i+j] ^ c[i+j];
+        for(int a=0; a<16; a++){
+            current_msg[a] = paddedMessage[a+i];
         }
-        AES_Encrypt(current_msg, key);
+        
+        for(int j=0; j<16; j++){
+            current_msg[j] = current_msg[j] ^ c[i+j];
+        }
+        AES_Encrypt(current_msg, key, expandedKey);
         for(int k=0; k<16; k++){
             c[i+k+16] = current_msg[k];
         }
-//        AES_Encrypt(paddedMessage+i, key);
     }
     
     cout<<"\nEncrypted Message: "<<endl;
-    for(int i=0; i<lenOfPaddedMessage; i++){
-        PrintHex(c[i]);
-        cout<<" ";
+    for(int i=0; i<lenOfPaddedMessage+16; i++){
+        cout<<PrintHex(c[i]);
+        c_copy[i] = c[i];
     }
     
-   
-    for(int i=0; i<lenOfPaddedMessage-1; i+=16){
+    for(int i=0; i<lenOfPaddedMessage; i+=16){
+        AES_Decrypt(c_copy+i+16, key, expandedKey);
         for(int j=0; j<16; j++){
-            AES_Decrypt(c+i+j+16, key);
+            c_copy[i+j+16] = c_copy[i+j+16] ^ c[i+j];
         }
-        for(int j=0; j<16; j++){
-            c[i+j] = c[i+j] ^ c[i+j+16];
-        }
-//        AES_Decrypt(paddedMessage+i , key);
     }
     
     cout<<"\nDecrypted Message: "<<endl;
-    for(int i=0; i<lenOfPaddedMessage; i++){
-        cout<<(paddedMessage[i]);
+//    for(int i=16; i<lenOfPaddedMessage+16; i++){
+//        cout<<(c_copy[i]);
+//    }
+    if(b==16){
+        for(int i=16; i<lenOfPaddedMessage; i++){
+            cout<<(c_copy[i]);
+        }
+    }
+    else{
+        for(int i=16; i<lenOfPaddedMessage+16-b; i++){
+            cout<<(c_copy[i]);
+        }
     }
     cout<<endl;
     delete[] paddedMessage;
+    delete [] c;
+    delete[] c_copy;
+    memset(key, '\0', sizeof(key));
+    memset(expandedKey, '\0', sizeof(expandedKey));
+    memset(message, '\0', sizeof(message));
     return 0;
 }
 
